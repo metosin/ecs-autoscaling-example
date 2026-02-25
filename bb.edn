@@ -57,24 +57,27 @@
    :task
    (let [tag (git-tag)]
      (println "Deploying image tag:" tag)
-     (shell {:dir "terraform"} "terraform apply" (str "-var=image_tag=" tag)))}
+     (apply shell
+            {:dir "terraform"}
+            "terraform apply"
+            (str "-var=image_tag=" tag)
+            *command-line-args*))}
 
-  add-job
-  {:doc "POST a job to the ALB. Args: [type payload-json]"
+  add-jobs
+  {:doc "POST jobs to the ALB. Args: [n] (default 1)"
    :task
-   (let [dns     (alb-dns)
-         args    *command-line-args*
-         type    (or (first args) "example")
-         payload (if-let [pauload-string (second args)]
-                   (json/parse-string pauload-string)
-                   {:data "hello"})
-         body    (json/generate-string {:type type
-                                        :payload payload})
-         resp    (http/post (str "http://" dns "/jobs")
-                            {:client http1-client
-                             :headers {"Content-Type" "application/json"}
-                             :body body})]
-     (println (:body resp)))}
+   (let [dns (alb-dns)
+         n   (parse-long (or (first *command-line-args*) "1"))
+         url (str "http://" dns "/jobs")]
+     (doseq [i (range n)]
+       (let [body (json/generate-string {:type "example"
+                                         :payload {:data (str "job-" (inc i))}})
+             resp (http/post url {:client http1-client
+                                  :headers {"Content-Type" "application/json"}
+                                  :body body})]
+         (println (:body resp))))
+     (when (> n 1)
+       (println "Added" n "jobs")))}
 
   queue-length
   {:doc "GET /queue-length from the ALB"
