@@ -37,4 +37,10 @@
 (defn -main [& _args]
   (let [port (:web-port config/config)]
     (println (str "Starting web server on port " port))
-    (jetty/run-jetty app {:port port :join? true})))
+    (let [server (jetty/run-jetty app {:port port :join? false})]
+      (.addShutdownHook (Runtime/getRuntime)
+                        (Thread. (fn []
+                                   (println "Shutting down web server...")
+                                   (.stop server)
+                                   (println "Web server stopped"))))
+      (.join server))))

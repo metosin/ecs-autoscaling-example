@@ -60,7 +60,8 @@
   (.addShutdownHook (Runtime/getRuntime)
                     (Thread. (fn []
                                (println "Shutting down worker...")
-                               (reset! running? false))))
+                               (reset! running? false)
+                               (println "Worker stopped"))))
   (let [cw-client (aws/client {:api :monitoring
                                :region (:aws-region config/config)})]
     (future (metric-publisher-loop cw-client))
