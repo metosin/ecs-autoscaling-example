@@ -1,0 +1,17 @@
+.git
+.github
+.claude
+.gitignore
+.dockerignore
+.cpcache
+.m2
+target
+classes
+terraform
+*.md
+*.tar
+.DS_Store
+.idea
+.nrepl-port
+.lsp
+.clj-kondo

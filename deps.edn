@@ -1,0 +1,13 @@
+{:paths ["src"]
+ :deps {ring/ring-jetty-adapter {:mvn/version "1.15.3"}
+        ring/ring-json {:mvn/version "0.5.1"}
+        com.taoensso/carmine {:mvn/version "3.5.0"}
+        com.cognitect.aws/api {:mvn/version "0.8.800"}
+        com.cognitect.aws/endpoints {:mvn/version "871.2.42.0"}
+        com.cognitect.aws/monitoring {:mvn/version "871.2.41.30"}}
+
+ :aliases
+ {:web {:main-opts ["-m" "app.web"]}
+  :worker {:main-opts ["-m" "app.worker"]}
+  :build {:deps {io.github.clojure/tools.build {:mvn/version "0.10.12"}}
+          :ns-default build}}}

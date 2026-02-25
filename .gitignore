@@ -1,0 +1,34 @@
+# Clojure
+target/
+classes/
+*.jar
+
+# Deps
+.cpcache/
+.m2/
+
+# Editor
+.idea/
+*.iml
+.nrepl-port
+.lsp/
+.clj-kondo/
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfplan
+terraform/.terraform.lock.hcl
+
+# Docker
+*.tar
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+
+.claude/settings.local.json
