@@ -25,7 +25,7 @@ resource "aws_ecs_task_definition" "web" {
 
   container_definitions = jsonencode([{
     name      = "web"
-    image     = var.web_image != "" ? var.web_image : "${aws_ecr_repository.web.repository_url}:latest"
+    image     = var.web_image != "" ? var.web_image : "${aws_ecr_repository.web.repository_url}:${var.image_tag}"
     essential = true
 
     portMappings = [{
@@ -72,7 +72,7 @@ resource "aws_ecs_task_definition" "worker" {
 
   container_definitions = jsonencode([{
     name      = "worker"
-    image     = var.worker_image != "" ? var.worker_image : "${aws_ecr_repository.worker.repository_url}:latest"
+    image     = var.worker_image != "" ? var.worker_image : "${aws_ecr_repository.worker.repository_url}:${var.image_tag}"
     essential = true
 
     environment = [

@@ -92,12 +92,13 @@ terraform apply -target=aws_ecr_repository.web -target=aws_ecr_repository.worker
 
 ### 3. Build and Push Docker Images
 
-Images are built for both x86 and ARM architectures (Fargate is configured to use Graviton/ARM64).
+Images are tagged with the current git tag and built for both x86 and ARM architectures (Fargate is configured to use Graviton/ARM64).
 
 ```bash
 AWS_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 AWS_REGION=eu-west-1
 REGISTRY=$AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com
+GIT_TAG=$(git describe --tags --always)
 
 aws ecr get-login-password --region $AWS_REGION | \
   docker login --username AWS --password-stdin $REGISTRY
@@ -108,20 +109,21 @@ docker buildx create --name multiarch --use 2>/dev/null || docker buildx use mul
 # Build and push web (multi-platform)
 docker buildx build --platform linux/amd64,linux/arm64 \
   --build-arg BUILD_TARGET=uber-web \
-  -t $REGISTRY/autoscaling-example/web:latest \
+  -t $REGISTRY/autoscaling-example/web:$GIT_TAG \
   --push .
 
 # Build and push worker (multi-platform)
 docker buildx build --platform linux/amd64,linux/arm64 \
   --build-arg BUILD_TARGET=uber-worker \
-  -t $REGISTRY/autoscaling-example/worker:latest \
+  -t $REGISTRY/autoscaling-example/worker:$GIT_TAG \
   --push .
 ```
 
 ### 4. Deploy Everything
 
 ```bash
-terraform apply
+GIT_TAG=$(git describe --tags --always)
+terraform apply -var="image_tag=$GIT_TAG"
 ```
 
 ### 5. Test

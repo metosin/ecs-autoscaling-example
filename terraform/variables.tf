@@ -22,14 +22,19 @@ variable "availability_zones" {
   default     = ["eu-west-1a", "eu-west-1c"]
 }
 
+variable "image_tag" {
+  description = "Docker image tag (e.g. git tag)"
+  type        = string
+}
+
 variable "web_image" {
-  description = "Docker image for web service"
+  description = "Docker image for web service (overrides ECR + image_tag)"
   type        = string
   default     = ""
 }
 
 variable "worker_image" {
-  description = "Docker image for worker service"
+  description = "Docker image for worker service (overrides ECR + image_tag)"
   type        = string
   default     = ""
 }
