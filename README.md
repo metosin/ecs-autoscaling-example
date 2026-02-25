@@ -90,24 +90,32 @@ terraform init
 terraform apply -target=aws_ecr_repository.web -target=aws_ecr_repository.worker
 ```
 
-### 3. Push Docker Images
+### 3. Build and Push Docker Images
+
+Images are built for both x86 and ARM architectures (Fargate is configured to use Graviton/ARM64).
 
 ```bash
 AWS_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-AWS_REGION=ap-northeast-1
+AWS_REGION=eu-west-1
+REGISTRY=$AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com
 
 aws ecr get-login-password --region $AWS_REGION | \
-  docker login --username AWS --password-stdin $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com
+  docker login --username AWS --password-stdin $REGISTRY
 
-# Build and push web
-docker build --build-arg BUILD_TARGET=uber-web -t ecs-web .
-docker tag ecs-web:latest $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/autoscaling-example/web:latest
-docker push $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/autoscaling-example/web:latest
+# Create a buildx builder (one-time setup)
+docker buildx create --name multiarch --use 2>/dev/null || docker buildx use multiarch
 
-# Build and push worker
-docker build --build-arg BUILD_TARGET=uber-worker -t ecs-worker .
-docker tag ecs-worker:latest $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/autoscaling-example/worker:latest
-docker push $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/autoscaling-example/worker:latest
+# Build and push web (multi-platform)
+docker buildx build --platform linux/amd64,linux/arm64 \
+  --build-arg BUILD_TARGET=uber-web \
+  -t $REGISTRY/autoscaling-example/web:latest \
+  --push .
+
+# Build and push worker (multi-platform)
+docker buildx build --platform linux/amd64,linux/arm64 \
+  --build-arg BUILD_TARGET=uber-worker \
+  -t $REGISTRY/autoscaling-example/worker:latest \
+  --push .
 ```
 
 ### 4. Deploy Everything
