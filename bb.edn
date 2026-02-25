@@ -81,10 +81,10 @@
   {:doc "Tail web service logs"
    :task
    (shell "aws logs tail" (str "/ecs/" project-name "/web")
-          "--follow --region" aws-region)}
+          "--follow" "--region" aws-region)}
 
   logs-worker
   {:doc "Tail worker service logs"
    :task
    (shell "aws logs tail" (str "/ecs/" project-name "/worker")
-          "--follow --region" aws-region)}}}
+          "--follow" "--region" aws-region)}}}
