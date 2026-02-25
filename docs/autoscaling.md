@@ -75,3 +75,40 @@ scale_in_policy = "step"   # default is "target_tracking"
 Step scaling is more aggressive, which means faster scale-in but a higher risk of
 removing tasks too early if the metric bounces around the target value. For bursty
 workloads where idle workers are costly, the faster response is usually worth it.
+
+## Scheduled scaling
+
+ECS Application Auto Scaling also supports scheduled actions that adjust min/max
+capacity on a cron schedule. This is useful when traffic patterns are predictable — for
+example, scaling up during working hours and down at night:
+
+```hcl
+resource "aws_appautoscaling_scheduled_action" "scale_up_morning" {
+  name               = "scale-up-morning"
+  resource_id        = aws_appautoscaling_target.worker.resource_id
+  scalable_dimension = aws_appautoscaling_target.worker.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.worker.service_namespace
+  schedule           = "cron(0 7 ? * MON-FRI *)"
+
+  scalable_target_action {
+    min_capacity = 3
+    max_capacity = 20
+  }
+}
+
+resource "aws_appautoscaling_scheduled_action" "scale_down_evening" {
+  name               = "scale-down-evening"
+  resource_id        = aws_appautoscaling_target.worker.resource_id
+  scalable_dimension = aws_appautoscaling_target.worker.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.worker.service_namespace
+  schedule           = "cron(0 19 ? * MON-FRI *)"
+
+  scalable_target_action {
+    min_capacity = 1
+    max_capacity = 5
+  }
+}
+```
+
+Scheduled scaling works alongside target tracking and step scaling — it sets the
+boundaries, while the metric-driven policies adjust within them.
