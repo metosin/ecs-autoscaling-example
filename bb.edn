@@ -8,22 +8,22 @@
 
   :init
   (do
-   (def aws-region "eu-west-1")
-   (def project-name "autoscaling-example")
+    (def aws-region "eu-west-1")
+    (def project-name "autoscaling-example")
 
-   (defn git-tag []
-         (str/trim (:out (shell {:out :string} "git describe --tags --always"))))
+    (defn git-tag []
+      (str/trim (:out (shell {:out :string} "git describe --tags --always"))))
 
-   (defn aws-account []
-         (str/trim (:out (shell {:out :string}
-                                "aws sts get-caller-identity --query Account --output text"))))
+    (defn aws-account []
+      (str/trim (:out (shell {:out :string}
+                             "aws sts get-caller-identity --query Account --output text"))))
 
-   (defn registry []
-         (str (aws-account) ".dkr.ecr." aws-region ".amazonaws.com"))
+    (defn registry []
+      (str (aws-account) ".dkr.ecr." aws-region ".amazonaws.com"))
 
-   (defn alb-dns []
-         (str/trim (:out (shell {:out :string :dir "terraform"}
-                                "terraform output -raw alb_dns_name")))))
+    (defn alb-dns []
+      (str/trim (:out (shell {:out :string :dir "terraform"}
+                             "terraform output -raw alb_dns_name")))))
 
   build
   {:doc "ECR login + multi-platform buildx of web & worker, pushed to ECR"
@@ -32,30 +32,30 @@
          tag (git-tag)
          pw  (str/trim (:out (shell {:out :string}
                                     "aws ecr get-login-password --region" aws-region)))]
-        (shell {:in pw} "docker login --username AWS --password-stdin" reg)
-        (try
-         (shell "docker buildx create --name multiarch --use")
-         (catch Exception _
-                (shell "docker buildx use multiarch")))
-        (println "Building web:" (str reg "/" project-name "/web:" tag))
-        (shell "docker buildx build"
-               "--platform" "linux/amd64,linux/arm64"
-               "--build-arg" "BUILD_TARGET=uber-web"
-               "-t" (str reg "/" project-name "/web:" tag)
-               "--push" ".")
-        (println "Building worker:" (str reg "/" project-name "/worker:" tag))
-        (shell "docker buildx build"
-               "--platform" "linux/amd64,linux/arm64"
-               "--build-arg" "BUILD_TARGET=uber-worker"
-               "-t" (str reg "/" project-name "/worker:" tag)
-               "--push" "."))}
+     (shell {:in pw} "docker login --username AWS --password-stdin" reg)
+     (try
+       (shell "docker buildx create --name multiarch --use")
+       (catch Exception _
+         (shell "docker buildx use multiarch")))
+     (println "Building web:" (str reg "/" project-name "/web:" tag))
+     (shell "docker buildx build"
+            "--platform" "linux/amd64,linux/arm64"
+            "--build-arg" "BUILD_TARGET=uber-web"
+            "-t" (str reg "/" project-name "/web:" tag)
+            "--push" ".")
+     (println "Building worker:" (str reg "/" project-name "/worker:" tag))
+     (shell "docker buildx build"
+            "--platform" "linux/amd64,linux/arm64"
+            "--build-arg" "BUILD_TARGET=uber-worker"
+            "-t" (str reg "/" project-name "/worker:" tag)
+            "--push" "."))}
 
   deploy
   {:doc "Terraform apply with current git tag"
    :task
    (let [tag (git-tag)]
-        (println "Deploying image tag:" tag)
-        (shell {:dir "terraform"} "terraform apply" (str "-var=image_tag=" tag)))}
+     (println "Deploying image tag:" tag)
+     (shell {:dir "terraform"} "terraform apply" (str "-var=image_tag=" tag)))}
 
   add-job
   {:doc "POST a job to the ALB. Args: [type payload-json]"
@@ -63,19 +63,22 @@
    (let [dns     (alb-dns)
          args    *command-line-args*
          type    (or (first args) "example")
-         payload (json/parse-string (or (second args) "{\"data\": \"hello\"}"))
-         body    (json/generate-string {:type type :payload payload})
+         payload (if-let [pauload-string (second args)]
+                   (json/parse-string pauload-string)
+                   {:data "hello"})
+         body    (json/generate-string {:type type
+                                        :payload payload})
          resp    (http/post (str "http://" dns "/jobs")
                             {:headers {"Content-Type" "application/json"}
                              :body body})]
-        (println (:body resp)))}
+     (println (:body resp)))}
 
   queue-length
   {:doc "GET /queue-length from the ALB"
    :task
    (let [dns  (alb-dns)
          resp (http/get (str "http://" dns "/queue-length"))]
-        (println (:body resp)))}
+     (println (:body resp)))}
 
   logs-web
   {:doc "Tail web service logs"
