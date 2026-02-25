@@ -15,8 +15,8 @@ resource "aws_appautoscaling_policy" "worker_queue_depth" {
 
   target_tracking_scaling_policy_configuration {
     target_value       = var.autoscaling_target_value
-    scale_out_cooldown = 60
-    scale_in_cooldown  = 300
+    scale_out_cooldown = 30
+    scale_in_cooldown  = 60
 
     customized_metric_specification {
       metrics {

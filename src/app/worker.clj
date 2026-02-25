@@ -36,7 +36,7 @@
       (publish-queue-metric cw-client)
       (catch Exception e
         (println (str "Metric publishing error: " (.getMessage e)))))
-    (let [deadline (+ (System/currentTimeMillis) 60000)]
+    (let [deadline (+ (System/currentTimeMillis) 15000)]
       (while (and @running? (< (System/currentTimeMillis) deadline))
         (Thread/sleep 1000)))))
 
