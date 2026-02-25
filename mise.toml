@@ -1,0 +1,7 @@
+[tools]
+terraform = "1.14.5"
+terraform-ls = "0.38.3"
+tflint = "0.60.0"
+
+babashka = "1.12.214"
+java = "25"
