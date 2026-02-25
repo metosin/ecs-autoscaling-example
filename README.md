@@ -20,8 +20,11 @@ Worker publishes RedisQueueLength → CloudWatch → Target Tracking Autoscaling
 
 - Java 21+
 - [Clojure CLI](https://clojure.org/guides/install_clojure)
+- [Babashka](https://github.com/babashka/babashka#installation)
 - Docker
 - Redis (or run via Docker)
+
+All tools except Docker and Redis can be installed with [mise](https://mise.jdx.dev/getting-started.html) — see `mise.toml` in the repo root.
 
 ### Start Redis
 
@@ -95,66 +98,46 @@ terraform apply -target=aws_ecr_repository.web -target=aws_ecr_repository.worker
 Images are tagged with the current git tag and built for both x86 and ARM architectures (Fargate is configured to use Graviton/ARM64).
 
 ```bash
-AWS_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-AWS_REGION=eu-west-1
-REGISTRY=$AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com
-GIT_TAG=$(git describe --tags --always)
-
-aws ecr get-login-password --region $AWS_REGION | \
-  docker login --username AWS --password-stdin $REGISTRY
-
-# Create a buildx builder (one-time setup)
-docker buildx create --name multiarch --use 2>/dev/null || docker buildx use multiarch
-
-# Build and push web (multi-platform)
-docker buildx build --platform linux/amd64,linux/arm64 \
-  --build-arg BUILD_TARGET=uber-web \
-  -t $REGISTRY/autoscaling-example/web:$GIT_TAG \
-  --push .
-
-# Build and push worker (multi-platform)
-docker buildx build --platform linux/amd64,linux/arm64 \
-  --build-arg BUILD_TARGET=uber-worker \
-  -t $REGISTRY/autoscaling-example/worker:$GIT_TAG \
-  --push .
+bb build
 ```
 
 ### 4. Deploy Everything
 
 ```bash
-GIT_TAG=$(git describe --tags --always)
-terraform apply -var="image_tag=$GIT_TAG"
+bb deploy
 ```
 
 ### 5. Test
 
 ```bash
-ALB_DNS=$(terraform output -raw alb_dns_name)
+# Submit a job (defaults to type "example")
+bb add-job
 
-# Health check
-curl http://$ALB_DNS/health
+# Submit with custom type and payload
+bb add-job load-test '{"data": "hello"}'
 
-# Submit a job
-curl -X POST http://$ALB_DNS/jobs \
-  -H "Content-Type: application/json" \
-  -d '{"type": "example", "payload": {"data": "hello"}}'
+# Check queue depth
+bb queue-length
 ```
 
 ## Load Test (Trigger Autoscaling)
 
 ```bash
-ALB_DNS=$(terraform output -raw alb_dns_name)
-
 # Submit 100 jobs to trigger scale-out
 for i in $(seq 1 100); do
-  curl -s -X POST http://$ALB_DNS/jobs \
-    -H "Content-Type: application/json" \
-    -d "{\"type\": \"load-test\", \"payload\": {\"i\": $i}}" &
+  bb add-job load-test "{\"i\": $i}" &
 done
 wait
 
 # Watch queue depth
-watch -n 5 "curl -s http://$ALB_DNS/queue-length"
+watch -n 5 bb queue-length
+```
+
+Tail logs:
+
+```bash
+bb logs-web
+bb logs-worker
 ```
 
 Monitor in the AWS Console:
@@ -172,6 +155,7 @@ terraform destroy
 ## Project Structure
 
 ```
+├── bb.edn              # Babashka tasks (build, deploy, logs, etc.)
 ├── deps.edn            # Clojure dependencies
 ├── build.clj           # Uberjar build targets
 ├── Dockerfile          # Multi-stage build (web/worker)
