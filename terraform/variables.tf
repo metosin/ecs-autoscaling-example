@@ -81,6 +81,16 @@ variable "autoscaling_target_value" {
   default     = 5
 }
 
+variable "scale_in_policy" {
+  description = "Scale-in policy type: target_tracking or step"
+  type        = string
+  default     = "target_tracking"
+  validation {
+    condition     = contains(["target_tracking", "step"], var.scale_in_policy)
+    error_message = "Must be target_tracking or step."
+  }
+}
+
 variable "redis_node_type" {
   description = "ElastiCache node type"
   type        = string
