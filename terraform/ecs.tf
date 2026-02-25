@@ -37,6 +37,10 @@ resource "aws_ecs_task_definition" "web" {
       { name = "PORT", value = "8080" },
       { name = "REDIS_HOST", value = aws_elasticache_cluster.redis.cache_nodes[0].address },
       { name = "REDIS_PORT", value = "6379" },
+      { name = "AWS_REGION", value = var.aws_region },
+      { name = "CW_NAMESPACE", value = "ECSAutoscaling" },
+      { name = "ECS_CLUSTER", value = var.project_name },
+      { name = "ECS_SERVICE", value = "${var.project_name}-worker" },
     ]
 
     logConfiguration = {
@@ -74,10 +78,6 @@ resource "aws_ecs_task_definition" "worker" {
     environment = [
       { name = "REDIS_HOST", value = aws_elasticache_cluster.redis.cache_nodes[0].address },
       { name = "REDIS_PORT", value = "6379" },
-      { name = "AWS_REGION", value = var.aws_region },
-      { name = "CW_NAMESPACE", value = "ECSAutoscaling" },
-      { name = "ECS_CLUSTER", value = var.project_name },
-      { name = "ECS_SERVICE", value = "${var.project_name}-worker" },
     ]
 
     logConfiguration = {

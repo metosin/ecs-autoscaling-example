@@ -20,7 +20,7 @@ resource "aws_iam_role_policy_attachment" "ecs_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# --- Web Task Role (no extra permissions) ---
+# --- Web Task Role (CloudWatch PutMetricData) ---
 
 resource "aws_iam_role" "web_task" {
   name = "${var.project_name}-web-task"
@@ -35,24 +35,9 @@ resource "aws_iam_role" "web_task" {
   })
 }
 
-# --- Worker Task Role (CloudWatch PutMetricData) ---
-
-resource "aws_iam_role" "worker_task" {
-  name = "${var.project_name}-worker-task"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Principal = { Service = "ecs-tasks.amazonaws.com" }
-    }]
-  })
-}
-
-resource "aws_iam_role_policy" "worker_cloudwatch" {
+resource "aws_iam_role_policy" "web_cloudwatch" {
   name = "cloudwatch-put-metric"
-  role = aws_iam_role.worker_task.id
+  role = aws_iam_role.web_task.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -65,6 +50,21 @@ resource "aws_iam_role_policy" "worker_cloudwatch" {
           "cloudwatch:namespace" = "ECSAutoscaling"
         }
       }
+    }]
+  })
+}
+
+# --- Worker Task Role (no extra permissions) ---
+
+resource "aws_iam_role" "worker_task" {
+  name = "${var.project_name}-worker-task"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = { Service = "ecs-tasks.amazonaws.com" }
     }]
   })
 }

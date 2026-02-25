@@ -1,7 +1,5 @@
 (ns app.worker
-  (:require [app.config :as config]
-            [app.queue :as queue]
-            [cognitect.aws.client.api :as aws])
+  (:require [app.queue :as queue])
   (:gen-class))
 
 (def running? (atom true))
@@ -12,33 +10,6 @@
     (Thread/sleep sleep-ms)
     {:processed-at (System/currentTimeMillis)
      :duration-ms sleep-ms}))
-
-(defn publish-queue-metric [cw-client]
-  (let [length (queue/queue-length)]
-    (println (str "Publishing RedisQueueLength=" length " to CloudWatch"))
-    (try
-      (aws/invoke cw-client
-                  {:op :PutMetricData
-                   :request {:Namespace (:cw-namespace config/config)
-                             :MetricData [{:MetricName "RedisQueueLength"
-                                           :Value (double length)
-                                           :Unit "Count"
-                                           :Dimensions [{:Name "ClusterName"
-                                                         :Value (:ecs-cluster config/config)}
-                                                        {:Name "ServiceName"
-                                                         :Value (:ecs-service config/config)}]}]}})
-      (catch Exception e
-        (println (str "Failed to publish metric: " (.getMessage e)))))))
-
-(defn metric-publisher-loop [cw-client]
-  (while @running?
-    (try
-      (publish-queue-metric cw-client)
-      (catch Exception e
-        (println (str "Metric publishing error: " (.getMessage e)))))
-    (let [deadline (+ (System/currentTimeMillis) 15000)]
-      (while (and @running? (< (System/currentTimeMillis) deadline))
-        (Thread/sleep 1000)))))
 
 (defn worker-loop []
   (println "Worker loop started")
@@ -62,7 +33,4 @@
                                (println "Shutting down worker...")
                                (reset! running? false)
                                (println "Worker stopped"))))
-  (let [cw-client (aws/client {:api :monitoring
-                               :region (:aws-region config/config)})]
-    (future (metric-publisher-loop cw-client))
-    (worker-loop)))
+  (worker-loop))
