@@ -23,7 +23,9 @@
 
     (defn alb-dns []
       (str/trim (:out (shell {:out :string :dir "terraform"}
-                             "terraform output -raw alb_dns_name")))))
+                             "terraform output -raw alb_dns_name"))))
+
+    (def http1-client (http/client {:version :http1.1})))
 
   build
   {:doc "ECR login + multi-platform buildx of web & worker, pushed to ECR"
@@ -69,7 +71,8 @@
          body    (json/generate-string {:type type
                                         :payload payload})
          resp    (http/post (str "http://" dns "/jobs")
-                            {:headers {"Content-Type" "application/json"}
+                            {:client http1-client
+                             :headers {"Content-Type" "application/json"}
                              :body body})]
      (println (:body resp)))}
 
@@ -77,7 +80,8 @@
   {:doc "GET /queue-length from the ALB"
    :task
    (let [dns  (alb-dns)
-         resp (http/get (str "http://" dns "/queue-length"))]
+         resp (http/get (str "http://" dns "/queue-length")
+                        {:client http1-client})]
      (println (:body resp)))}
 
   logs-web
