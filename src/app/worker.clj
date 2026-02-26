@@ -21,13 +21,16 @@
             (queue/complete-job (:id job) result))
           (catch Exception e
             (println (str "Job " (:id job) " failed: " (.getMessage e)))
-            (queue/fail-job (:id job) (.getMessage e)))))
+            (queue/fail-job (:id job) (.getMessage e)))
+          (finally
+            (queue/ack-job (:stream-entry-id job)))))
       (catch Exception e
         (println (str "Worker error: " (.getMessage e)))
         (Thread/sleep 1000)))))
 
 (defn -main [& _args]
   (println "Starting worker")
+  (queue/ensure-consumer-group)
   (.addShutdownHook (Runtime/getRuntime)
                     (Thread. (fn []
                                (println "Shutting down worker...")

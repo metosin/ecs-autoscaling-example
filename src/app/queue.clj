@@ -3,7 +3,15 @@
             [taoensso.carmine :as car])
   (:import [java.util UUID]))
 
-(def queue-key "job-queue")
+(def stream-key "job-stream")
+(def group-name "workers")
+(def consumer-name (str "worker-" (UUID/randomUUID)))
+
+(defn ensure-consumer-group []
+  (try
+    (car/wcar redis/conn-opts
+              (car/xgroup "CREATE" stream-key group-name "0" "MKSTREAM"))
+    (catch Exception _)))
 
 (defn enqueue-job [job-type payload]
   (let [job-id (str (UUID/randomUUID))
@@ -12,13 +20,25 @@
              :payload payload
              :status "queued"
              :created-at (System/currentTimeMillis)}]
-    (car/wcar redis/conn-opts (car/lpush queue-key (pr-str job)))
+    (car/wcar redis/conn-opts (car/xadd stream-key "*" "job" (pr-str job)))
     job))
 
 (defn dequeue-job [timeout-sec]
-  (let [result (car/wcar redis/conn-opts (car/brpop queue-key timeout-sec))]
-    (when result
-      (read-string (second result)))))
+  (let [result (car/wcar redis/conn-opts
+                         (car/xreadgroup "GROUP" group-name consumer-name
+                                         "COUNT" 1
+                                         "BLOCK" (* timeout-sec 1000)
+                                         "STREAMS" stream-key ">"))]
+    (when (and result (seq result))
+      (let [[_ entries] (first result)
+            [entry-id fields] (first entries)
+            job-str (second fields)]
+        (assoc (read-string job-str) :stream-entry-id entry-id)))))
+
+(defn ack-job [entry-id]
+  (car/wcar redis/conn-opts
+            (car/xack stream-key group-name entry-id)
+            (car/xdel stream-key entry-id)))
 
 (defn complete-job [job-id result]
   (let [data {:status "completed" :result result :completed-at (System/currentTimeMillis)}]
@@ -38,4 +58,4 @@
       (read-string raw))))
 
 (defn queue-length []
-  (car/wcar redis/conn-opts (car/llen queue-key)))
+  (car/wcar redis/conn-opts (car/xlen stream-key)))
